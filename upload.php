@@ -25,7 +25,29 @@ class Upload {
         $this->HOST = 'http://'.$_SERVER['HTTP_HOST']; // https xxx
         $this->HOST_PATH = $_SERVER['DOCUMENT_ROOT'] . "/videos/test2";
         $this->UPLOAD_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos';
+        $this->TMP_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos/tmp';
         $this->STILLS_DIR = $_SERVER['DOCUMENT_ROOT'] . '/moodle/mod/videodatabase/images/stills/';
+
+        if (!isset($_FILES['videofiles']['error']) || is_array($_FILES['videofiles']['error']) ) { // upfile
+            //throw new RuntimeException('Invalid parameters.');
+        }
+
+        //if(isset($_POST['completeupload'])){}
+
+        if(isset($_GET['completeupload'])){
+            $this->moveFiles($_GET['completeupload']);
+        }else{
+            //$this->moveFiles($_GET['completeupload']);
+            $this->upload();
+        }
+    }
+
+
+    /**
+     * 
+     */
+    function upload(){
+        
         $this->FILES = $_FILES['videofiles'];
         //$MIMES = array('jpg' => 'image/jpeg','png' => 'image/png','gif' => 'image/gif' );
         $this->MIMES = array('mp4' => 'video/mp4','webm' => 'video/webm' );
@@ -33,9 +55,7 @@ class Upload {
 
        try {
         
-        if (!isset($_FILES['videofiles']['error']) || is_array($_FILES['videofiles']['error']) ) { // upfile
-            //throw new RuntimeException('Invalid parameters.');
-        } 
+        
         $error = 0;
 
         switch ($this->FILES['error']) {
@@ -77,18 +97,21 @@ class Upload {
                 } else if (false === $ext = array_search( finfo_file($finfo, $tmp_name), $this->MIMES, true)){
                     $res['error'] .= "Invalid file format " .finfo_file($finfo, $tmp_name);
                 
-                } else if (!move_uploaded_file( $tmp_name, $this->UPLOAD_DIR . '/' . $name )){
-                    $res['error'] .= "Could not move file ". $name ." to ".$this->UPLOAD_DIR.'/'.$name;
-                
+                } else if (!move_uploaded_file( $tmp_name, $this->TMP_DIR . '/' . $name )){
+                    $res['error'] .= "Could not move file ". $name ." to ".$this->TMP_DIR.'/'.$name;
+    
                 }
-                $res['duration'] = $this->getVideoDuration("$this->UPLOAD_DIR/$name");
+                // start conversion of the video
+                $res['error'] .= $this->convertVideos("$this->TMP_DIR/$name");
+
+                $res['duration'] = $this->getVideoDuration("$this->TMP_DIR/$name");
                 $res['location'] = "$this->HOST_PATH/$name";
                 $this->result['files'][(int)$key] = $res;
                 $this->result['total-size'] = $this->result['total-size'] + $this->FILES['size'][$key];
                 //$result['error'] .= $res['error']; // fixxed
                 $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
                 // generate gif
-                $this->extractImages("$this->UPLOAD_DIR/$name", $res['duration'], 4, $n);
+                $this->extractImages("$this->TMP_DIR/$name", $res['duration'], 4, $n);
                 $this->result['error'] = $res['error'];
                 }
             }
@@ -104,6 +127,58 @@ class Upload {
 
     }
 
+
+    /**
+     * Moves the uploaded and generated files from the temporal folder to its final destination
+     */
+    function moveFiles($name){
+        $error = '';
+        // move videos
+        if (is_dir($this->TMP_DIR) && is_writable($this->TMP_DIR)) {
+            if (is_dir($this->UPLOAD_DIR) && is_writable($this->UPLOAD_DIR)) {
+                $move = rename($this->TMP_DIR . '/' . $name . '.mp4', $this->UPLOAD_DIR . '/' . $name . '.mp4');
+                if($move == false){
+                    $error .= 'Could not move mp4 video '. $this->UPLOAD_DIR . '/' . $name . '.mp4';
+                }
+            }else {
+                $error .=  "The upload directory does not exist or is not writable.";
+            } 
+            if (is_dir($this->STILLS_DIR) && is_writable($this->STILLS_DIR)) {
+                if (!rename( 
+                    $this->TMP_DIR . '/still-' . $name . '_comp.jpg',
+                    $this->STILLS_DIR . '/still-' . $name . '_comp.jpg'
+                )){
+                    $error .= 'Could not move thumbnail';
+                }
+
+                if (!rename( 
+                    $this->TMP_DIR . '/still-' . $name . '_comp.gif',
+                    $this->STILLS_DIR . '/still-' . $name . '_comp.gif'
+                )){
+                    $error .= 'Could not move gif animation '.$name;
+                }
+            }
+            
+        }else {
+            $error .=  "The temporary (tmp) directory does not exist or is not writable.";
+        }    
+        echo $error;
+              return;
+        /*
+        if (!move_uploaded_file(
+            $this->TMP_DIR . '/' . $name . '.webm', 
+            $this->UPLOAD_DIR . '/' . $name . '.webm'
+        )){
+            $error .= 'Could not move webm video';
+        }*/
+          
+        // move still image and gif animation
+        
+        //echo $error;
+        //return $error;
+    }
+
+
     /**
      * Converts a given video file into an webm and mp4 file
      */
@@ -116,30 +191,43 @@ class Upload {
             'timeout'          => 360000, // The timeout for the underlying process
             'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
         ));
-        $ffprobe = FFMpeg\FFProbe::create();
         
-        
-        // open video
-        $video = $ffmpeg->open( $videosource . $filename );
-        
-        // extract still images
-        $duration = round( $ffprobe->format( $videosource . $filename )->get('duration'));
-        $this->extractImages($video, $duration, 4);
+        $ffmpeg = FFMpeg\FFMpeg::create();
 
-        // run scheduler
+        // open video
+        $video = $ffmpeg->open( $filename );
+       
+        $formatx264 = new FFMpeg\Format\Video\X264();
+        $formatx264->setAudioCodec("libmp3lame");
+        $formatwebm = new FFMpeg\Format\Video\WebM();
+        $formatwebm->setAudioCodec("libmp3lame");
+        $formatx264->on('progress', function ($audio, $format, $percentage) {
+            //echo "$percentage % transcoded";
+        });
+        
+        $video
+            ->save($formatx264, $this->TMP_DIR . '/export-x264.mp4')
+            //->save(new FFMpeg\Format\Video\WMV(), 'export-wmv.wmv')
+            ->save($formatwebm, $this->TMP_DIR . '/export-webm.webm');
+
+        // bug: https://github.com/PHP-FFMpeg/PHP-FFMpeg/issues/453
+        //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
+        
+        
+         /*$video
+            ->filters()
+            ->resize(new FFMpeg\Coordinate\Dimension(320, 240))
+            ->synchronize();
+        // run scheduler 
+        
         $sch = Crunz\Schedule;
         $schedule = new Schedule();
         $schedule
             ->run('/usr/bin/php script.php')
             ->dailyAt('13:30')
             ->description('Copying the project directory');
-        //return $schedule;
-        
-        // bug: https://github.com/PHP-FFMpeg/PHP-FFMpeg/issues/453
-        //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
-        
-        
-        
+        return $schedule;
+        */
             
         // convert video
         /*
@@ -175,12 +263,14 @@ class Upload {
             'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
         ));  
         $video = $ffmpeg->open( $video );
-        $video 
-            ->gif(FFMpeg\Coordinate\TimeCode::fromSeconds(2), new FFMpeg\Coordinate\Dimension(640, 480), 3)
-            ->save( $this->STILLS_DIR . 'still-' . $name . '_comp.gif');
-        $video
-            ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(round($duration/2)))
-            ->save( $this->STILLS_DIR . 'still-' . $name . '_comp.jpg');
+        if(is_dir($this->TMP_DIR) && is_writable($this->TMP_DIR)){
+            $video 
+                ->gif(FFMpeg\Coordinate\TimeCode::fromSeconds(2), new FFMpeg\Coordinate\Dimension(640, 480), 3)
+                ->save( $this->TMP_DIR . '/still-' . $name . '_comp.gif');
+            $video
+                ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(round($duration/2)))
+                ->save( $this->TMP_DIR . '/still-' . $name . '_comp.jpg');
+        }
     }
 
     /**
