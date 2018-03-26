@@ -22,11 +22,11 @@ class Upload {
         "error" => ''
         ];
 
-        $this->HOST = 'http://'.$_SERVER['HTTP_HOST'].':'.$_SERVER['SERVER_PORT']; // https xxx
-        $this->HOST_PATH = $_SERVER['DOCUMENT_ROOT'].':'.$_SERVER['SERVER_PORT'] . "/videos/test2";
-        $this->UPLOAD_DIR = $_SERVER['DOCUMENT_ROOT'].':'.$_SERVER['SERVER_PORT'] . '/videos';
-        $this->TMP_DIR = $_SERVER['DOCUMENT_ROOT'].':'.$_SERVER['SERVER_PORT'] . '/videos/tmp';
-        $this->STILLS_DIR = $_SERVER['DOCUMENT_ROOT'].':'.$_SERVER['SERVER_PORT'] . '/moodle/mod/videodatabase/images/stills/';
+        $this->HOST = 'http://'.$_SERVER['HTTP_HOST'] . ':' . $_SERVER['SERVER_PORT']; // https xxx
+        $this->HOST_PATH = $_SERVER['DOCUMENT_ROOT'] . "/videos/test2";
+        $this->UPLOAD_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos';
+        $this->TMP_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos/tmp';
+        $this->STILLS_DIR = $_SERVER['DOCUMENT_ROOT'] . '/moodle/mod/videodatabase/images/stills/';
 
         if (!isset($_FILES['videofiles']['error']) || is_array($_FILES['videofiles']['error']) ) { // upfile
             //throw new RuntimeException('Invalid parameters.');
