@@ -109,10 +109,6 @@ class Upload {
     
                 }
                 
-                // start conversion of the video
-                //$res['error'] .= $this->convertVideos("$this->TMP_DIR/$name", $n);
-
-                
                 $res['location'] = "$this->HOST_PATH/$name";
                 $this->result['files'][(int)$key] = $res;
                 $this->result['total-size'] = $this->result['total-size'] + $this->FILES['size'][$key];
@@ -215,7 +211,7 @@ class Upload {
         $video = $ffmpeg->open( $filename );
        
         $formatx264 = new FFMpeg\Format\Video\X264();
-        $formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame
+        //$formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame libfaac
         //$formatwebm = new FFMpeg\Format\Video\WebM();
         //$formatwebm->setAudioCodec("libmp3lame");
         $formatx264->on('progress', function ($audio, $format, $percentage) {
