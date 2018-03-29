@@ -34,8 +34,8 @@ class Upload {
 
         //if(isset($_POST['completeupload'])){}
 
-        if(isset($_GET['completeupload'])){
-            $this->moveFiles($_GET['completeupload']);
+        if( isset($_GET['completeupload']) && isset($_GET['duration'])){
+            $this->moveFiles($_GET['completeupload'], $_GET['duration']);
         }else{
             //$this->moveFiles($_GET['completeupload']);
             $this->upload();
@@ -87,6 +87,12 @@ class Upload {
                 $res['size'] = $this->FILES['size'][$key];
                 $res['type'] = $this->FILES['type'][$key];
                 $res['error'] = '';
+                $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
+                $res['error'] .= $this->convertVideos($tmp_name, $n);
+                // generate gif
+                $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
+
+                $this->extractImages($tmp_name, $res['duration'], 4, $n);
 
                 // check mime
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -101,17 +107,15 @@ class Upload {
                     $res['error'] .= "Could not move file ". $name ." to ".$this->TMP_DIR.'/'.$name;
     
                 }
+                
                 // start conversion of the video
-                $res['error'] .= $this->convertVideos("$this->TMP_DIR/$name");
+                //$res['error'] .= $this->convertVideos("$this->TMP_DIR/$name", $n);
 
-                $res['duration'] = $this->getVideoDuration("$this->TMP_DIR/$name");
+                
                 $res['location'] = "$this->HOST_PATH/$name";
                 $this->result['files'][(int)$key] = $res;
                 $this->result['total-size'] = $this->result['total-size'] + $this->FILES['size'][$key];
-                //$result['error'] .= $res['error']; // fixxed
-                $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
-                // generate gif
-                $this->extractImages("$this->TMP_DIR/$name", $res['duration'], 4, $n);
+                
                 $this->result['error'] = $res['error'];
                 }
             }
@@ -131,7 +135,7 @@ class Upload {
     /**
      * Moves the uploaded and generated files from the temporal folder to its final destination
      */
-    function moveFiles($name){
+    function moveFiles($name, $duration){
         $error = '';
         // move videos
         if (is_dir($this->TMP_DIR) && is_writable($this->TMP_DIR)) {
@@ -148,7 +152,7 @@ class Upload {
                     $this->TMP_DIR . '/still-' . $name . '_comp.jpg',
                     $this->STILLS_DIR . '/still-' . $name . '_comp.jpg'
                 )){
-                    $error .= 'Could not move thumbnail';
+                    $error .= 'Could not move thumbnail:' . $this->TMP_DIR . '/still-' . $name . '_comp.jpg';
                 }
 
                 if (!rename( 
@@ -157,13 +161,25 @@ class Upload {
                 )){
                     $error .= 'Could not move gif animation '.$name;
                 }
+
+                for($i=0; $i < $duration; $i++){
+                    if (!rename( 
+                        $this->TMP_DIR . '/preview-' . $name . '-'. $i .'.jpg',
+                        $this->STILLS_DIR . '/preview-' . $name . '-'. $i .'.jpg'
+                    )){
+                        $error .= 'Could not move preview '.$name;
+                    }
+                }
+
+            }else{
+                $error .= $this->STILLS_DIR . 'is not writable or existing';
             }
             
         }else {
             $error .=  "The temporary (tmp) directory does not exist or is not writable.";
         }    
         echo $error;
-              return;
+              return $error;
         /*
         if (!move_uploaded_file(
             $this->TMP_DIR . '/' . $name . '.webm', 
@@ -182,7 +198,7 @@ class Upload {
     /**
      * Converts a given video file into an webm and mp4 file
      */
-    function convertVideos($filename){
+    function convertVideos($filename, $name){
         // initialize
         require_once 'vendor/autoload.php';
         $ffmpeg = FFMpeg\FFMpeg::create(array(
@@ -198,17 +214,17 @@ class Upload {
         $video = $ffmpeg->open( $filename );
        
         $formatx264 = new FFMpeg\Format\Video\X264();
-        $formatx264->setAudioCodec("libmp3lame");
-        $formatwebm = new FFMpeg\Format\Video\WebM();
-        $formatwebm->setAudioCodec("libmp3lame");
+        $formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame
+        //$formatwebm = new FFMpeg\Format\Video\WebM();
+        //$formatwebm->setAudioCodec("libmp3lame");
         $formatx264->on('progress', function ($audio, $format, $percentage) {
             //echo "$percentage % transcoded";
         });
         
         $video
-            ->save($formatx264, $this->TMP_DIR . '/export-x264.mp4')
+            ->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4')
             //->save(new FFMpeg\Format\Video\WMV(), 'export-wmv.wmv')
-            ->save($formatwebm, $this->TMP_DIR . '/export-webm.webm');
+            //->save($formatwebm, $this->TMP_DIR . '/export-webm.webm');
 
         // bug: https://github.com/PHP-FFMpeg/PHP-FFMpeg/issues/453
         //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
@@ -254,7 +270,7 @@ class Upload {
     /**
      * Extracts a given number of still images from a video
      */
-    function extractImages( $video, $duration, $n, $name ){
+    function extractImages( $videofile, $duration, $n, $name ){
         require_once 'vendor/autoload.php'; 
         $ffmpeg = FFMpeg\FFMpeg::create(array(
             'ffmpeg.binaries'  => '/usr/bin/ffmpeg',
@@ -262,14 +278,31 @@ class Upload {
             'timeout'          => 360000, // The timeout for the underlying process
             'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
         ));  
-        $video = $ffmpeg->open( $video );
+
+        $video = $ffmpeg->open( $videofile );
+        
         if(is_dir($this->TMP_DIR) && is_writable($this->TMP_DIR)){
+            // generate gif animation
             $video 
-                ->gif(FFMpeg\Coordinate\TimeCode::fromSeconds(2), new FFMpeg\Coordinate\Dimension(640, 480), 3)
+                ->gif(FFMpeg\Coordinate\TimeCode::fromSeconds(0), new FFMpeg\Coordinate\Dimension(320, 240), 10)
                 ->save( $this->TMP_DIR . '/still-' . $name . '_comp.gif');
+            // generate thumbnail
             $video
                 ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(round($duration/2)))
                 ->save( $this->TMP_DIR . '/still-' . $name . '_comp.jpg');
+            
+            // generate preview images for every second
+            // FRAMERATE_EVERY_SEC: 2, 5, 10, 30, 60 
+            //$video->filters()
+              //  ->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_SEC, $this->TMP_DIR.'/thumbnail-.jpg')
+               // ->synchronize();
+                
+            //$video
+            for($i=0; $i < $duration; $i++){
+                $video
+                    ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds($i))
+                    ->save( $this->TMP_DIR . '/preview-' . $name . '-' . $i . '.jpg' );        
+            }/**/
         }
     }
 
@@ -278,15 +311,8 @@ class Upload {
      */
     function getVideoDuration($filename){
         require_once 'vendor/autoload.php'; 
-        $ffmpeg = FFMpeg\FFMpeg::create(array(
-            'ffmpeg.binaries'  => '/usr/bin/ffmpeg',
-            'ffprobe.binaries' => '/usr/bin/ffprobe',
-            'timeout'          => 360000, // The timeout for the underlying process
-            'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
-        ));       
         $ffprobe = FFMpeg\FFProbe::create(); 
-        
-        return round( $ffprobe->format( $filename )->get('duration'));
+        return round( $ffprobe->format( $filename )->get('duration') );
     }
     
     
