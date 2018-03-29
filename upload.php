@@ -81,6 +81,7 @@ class Upload {
                 $timestamp = date_timestamp_get($date);
                 $tmp_name = $this->FILES["tmp_name"][$key];
                 $name = $timestamp . '-' . basename($this->FILES["name"][$key]);
+                $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
                 $res = [];		      
                 $res['location'] = "$this->UPLOAD_DIR/$name";
                 $res['name'] = $name;
@@ -90,7 +91,7 @@ class Upload {
                 $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
                 $res['error'] .= $this->convertVideos($tmp_name, $n);
                 // generate gif
-                $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
+                
 
                 $this->extractImages($tmp_name, $res['duration'], 4, $n);
 
