@@ -122,7 +122,7 @@ class Upload {
             }
             echo json_encode($this->result);
         } catch (RuntimeException $e) {
-                echo json_encode($e->getMessage());
+                echo json_encode('bam'.$e->getMessage());
             //	echo $e->getMessage();
         }
 
@@ -349,7 +349,7 @@ class Upload {
                 $iValue *= 1024;
                 break;
         }
-        return  (int)$iValue;
+        return (int)$iValue;
     }
 
     /**
@@ -360,8 +360,6 @@ class Upload {
     }  
         
 }
-
-
 
 $obj = new Upload();
 
