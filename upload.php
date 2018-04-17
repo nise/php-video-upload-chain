@@ -89,11 +89,11 @@ class Upload {
                 $res['type'] = $this->FILES['type'][$key];
                 $res['error'] = '';
                 $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
-                $res['error'] .= $this->convertVideos($tmp_name, $n);
+                $res['error'] .= 'Video conversion failed. ' . $this->convertVideos($tmp_name, $n);
                 // generate gif
                 
 
-                $this->extractImages($tmp_name, $res['duration'], 4, $n);
+                $res['error'] .= $this->extractImages($tmp_name, $res['duration'], 4, $n);
 
                 // check mime
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -175,8 +175,9 @@ class Upload {
         }else {
             $error .=  "The temporary (tmp) directory does not exist or is not writable.";
         }    
-        echo $error;
-              return $error;
+        //echo $error;
+        
+        return $error;
         /*
         if (!move_uploaded_file(
             $this->TMP_DIR . '/' . $name . '.webm', 
@@ -211,7 +212,7 @@ class Upload {
         $video = $ffmpeg->open( $filename );
        
         $formatx264 = new FFMpeg\Format\Video\X264();
-        //$formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame libfaac
+        $formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame libfaac
         //$formatwebm = new FFMpeg\Format\Video\WebM();
         //$formatwebm->setAudioCodec("libmp3lame");
         $formatx264->on('progress', function ($audio, $format, $percentage) {
@@ -274,7 +275,7 @@ class Upload {
             'ffprobe.binaries' => '/usr/bin/ffprobe',
             'timeout'          => 360000, // The timeout for the underlying process
             'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
-        ));  
+        ), $logger);  
 
         $video = $ffmpeg->open( $videofile );
         
@@ -300,7 +301,11 @@ class Upload {
                     ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds($i))
                     ->save( $this->TMP_DIR . '/preview-' . $name . '-' . $i . '.jpg' );        
             }/**/
+        }else{
+            return $this->TMP_DIR . ' does not exist or is not writable';
         }
+
+        return $logger;
     }
 
     /**
