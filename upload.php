@@ -89,7 +89,7 @@ class Upload {
                 $res['type'] = $this->FILES['type'][$key];
                 $res['error'] = '';
                 $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
-                $res['error'] .= 'Video conversion failed. ' . $this->convertVideos($tmp_name, $n);
+                $res['error'] .= $this->convertVideos($tmp_name, $n); // function should return errors. xxx
                 // generate gif
                 
 
@@ -221,7 +221,7 @@ class Upload {
         });
         
         $video
-            ->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4')
+            ->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4');
             //->save(new FFMpeg\Format\Video\WMV(), 'export-wmv.wmv')
             //->save($formatwebm, $this->TMP_DIR . '/export-webm.webm');
 
@@ -229,39 +229,6 @@ class Upload {
         //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
         
         
-         /*$video
-            ->filters()
-            ->resize(new FFMpeg\Coordinate\Dimension(320, 240))
-            ->synchronize();
-        // run scheduler 
-        
-        $sch = Crunz\Schedule;
-        $schedule = new Schedule();
-        $schedule
-            ->run('/usr/bin/php script.php')
-            ->dailyAt('13:30')
-            ->description('Copying the project directory');
-        return $schedule;
-        */
-            
-        // convert video
-        /*
-        $webm = new FFMpeg\Format\Video\WebM(); 
-        $mp4 = new FFMpeg\Format\Video\X264(); 
-        
-        // be called once at the beginning and after the job is done
-        $webm->on('progress', function ($video, $webm, $percentage) {
-            echo "$percentage % transcoded";
-        });
-        */
-        //$format->setAudioCodec("libfaac");
-            //->setKiloBitrate(1000)
-            //->setAudioChannels(2)
-            //->setAudioKiloBitrate(256);
-         //$video
-            //->save($webm, $videotarget . $filename . '.webm')
-            //->save($mp4, $videotarget . $filename . '.mp4')
-            ;
         return;
     }
 
