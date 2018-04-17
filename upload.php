@@ -349,7 +349,7 @@ class Upload {
                 $iValue *= 1024;
                 break;
         }
-        return (int)$iValue;
+        return  (int)$iValue;
     }
 
     /**
