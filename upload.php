@@ -215,14 +215,13 @@ class Upload {
         $formatx264 = new FFMpeg\Format\Video\X264();
         $formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame libfaac
         $formatwebm = new FFMpeg\Format\Video\WebM();
-        $formatwebm->setAudioCodec("libmp3lame");
+        $formatwebm->setAudioCodec("libvorbis");
         $formatx264->on('progress', function ($audio, $format, $percentage) {
             //echo "$percentage % transcoded";
         });
         
-        $video
-            ->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4')
-            ->save($formatwebm, $this->TMP_DIR . '/' . $name . '.webm');
+        $video->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4');
+        $video->save($formatwebm, $this->TMP_DIR . '/' . $name . '.webm');
 
         // bug: https://github.com/PHP-FFMpeg/PHP-FFMpeg/issues/453
         //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
