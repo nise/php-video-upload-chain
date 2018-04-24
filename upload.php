@@ -16,25 +16,20 @@ class Upload {
         
     function __construct() { 
         $this->util = new Util();
+        $this->config = include 'config.php';
         $this->result = [
-        "upload_max_filesize" => $this->util->convertPHPSizeToBytes( ini_get('upload_max_filesize') ),
-        "post_max_size" => $this->util->convertPHPSizeToBytes( ini_get('post_max_size') ),
-        "files" => array(),
-        "total-size" => 0,
-        "error" => ''
+            "upload_max_filesize" => $this->util->convertPHPSizeToBytes( ini_get('upload_max_filesize') ),
+            "post_max_size" => $this->util->convertPHPSizeToBytes( ini_get('post_max_size') ),
+            "files" => array(),
+            "total-size" => 0,
+            "error" => ''
         ];
 
-        $this->HOST = 'http://'.$_SERVER['HTTP_HOST'] . ':' . $_SERVER['SERVER_PORT']; // https xxx
-        $this->HOST_PATH = $_SERVER['DOCUMENT_ROOT'] . "/videos/test2";
-        $this->UPLOAD_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos';
-        $this->TMP_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos/tmp';
-        $this->STILLS_DIR = $_SERVER['DOCUMENT_ROOT'] . '/moodle/mod/videodatabase/images/stills/';
-
-        if (!isset($_FILES['videofiles']['error']) || is_array($_FILES['videofiles']['error']) ) { // upfile
-            //throw new RuntimeException('Invalid parameters.');
-        }
-
-        //if(isset($_POST['completeupload'])){}
+        $this->HOST = $this->config['host'];
+        $this->HOST_PATH = $this->config['host_path'];
+        $this->UPLOAD_DIR = $this->config['upload_dir'];
+        $this->TMP_DIR = $this->config['tmp_dir'];
+        $this->STILLS_DIR = $this->config['stills_dir'];
 
         if( isset($_GET['completeupload']) && isset($_GET['duration'])){
             $this->moveFiles($_GET['completeupload'], $_GET['duration']);
@@ -56,10 +51,8 @@ class Upload {
         $this->MAX_SIZE = $this->util->getMaximumFileUploadSize(); // 200MB = 200 * 1024 * 1024; 
 
        try {
-        
-        
+    
         $error = 0;
-
         switch ($this->FILES['error']) {
             case UPLOAD_ERR_OK:
                 $error = UPLOAD_ERR_OK;
@@ -74,7 +67,6 @@ class Upload {
             default:
                     //throw new RuntimeException('Unknown errors.');
         }
-            
 
         for($key=0; $key < sizeof($this->FILES["name"]); $key++) {
                 
@@ -127,7 +119,6 @@ class Upload {
         } catch (RuntimeException $e) {
             echo json_encode($e->getMessage());
         }
-
     }
 
 

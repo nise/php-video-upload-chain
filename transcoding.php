@@ -7,38 +7,25 @@ include 'util.php';
 class Transcoding {
     
     /**
-     * 
+     * Class constructor
      */
     function __construct($tmp_name, $duration, $name) { 
         $this->util = new Util();
-        $this->result = [
-        "upload_max_filesize" => $this->util->convertPHPSizeToBytes( ini_get('upload_max_filesize') ),
-        "post_max_size" => $this->util->convertPHPSizeToBytes( ini_get('post_max_size') ),
-        "files" => array(),
-        "total-size" => 0,
-        "error" => ''
-        ];
-
-        $this->HOST = 'http://'.$_SERVER['HTTP_HOST'] . ':' . $_SERVER['SERVER_PORT']; // https xxx
-        $this->HOST_PATH = $_SERVER['DOCUMENT_ROOT'] . "/videos/test2";
-        $this->UPLOAD_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos';
-        $this->TMP_DIR = $_SERVER['DOCUMENT_ROOT'] . '/videos/tmp';
-        $this->STILLS_DIR = $_SERVER['DOCUMENT_ROOT'] . '/moodle/mod/videodatabase/images/stills/';
-
-        if (!isset($_FILES['videofiles']['error']) || is_array($_FILES['videofiles']['error']) ) { // upfile
-            //throw new RuntimeException('Invalid parameters.');
-        }
-
-        //if(isset($_POST['completeupload'])){}
-
-       $this->convertVideos($tmp_name, $name); 
-       $this->extractImages($tmp_name, $duration, 4, $name);
-
+        $this->config = include 'config.php';
+        
+        $this->HOST = $this->config['host'];
+        $this->HOST_PATH = $this->config['host_path'];
+        $this->UPLOAD_DIR = $this->config['upload_dir'];
+        $this->TMP_DIR = $this->config['tmp_dir'];
+        $this->STILLS_DIR = $this->config['stills_dir'];
+        
+        $this->convertVideos($tmp_name, $name); 
+        $this->extractImages($tmp_name, $duration, 4, $name);
     }
     
 
     /**
-     * 
+     * Send server site event messages and progress information to the client.
      */
     function send_message($id, $message, $progress) {
         $d = array('message' => $message , 'progress' => $progress);
@@ -50,7 +37,6 @@ class Transcoding {
         ob_flush();
         flush();
     }
-
 
 
     /**
@@ -84,11 +70,7 @@ class Transcoding {
         
         $video->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4');
         $video->save($formatwebm, $this->TMP_DIR . '/' . $name . '.webm');
-
-        // bug: https://github.com/PHP-FFMpeg/PHP-FFMpeg/issues/453
-        //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
         
-        return;
     }
 
 
@@ -140,8 +122,6 @@ class Transcoding {
         }else{
             return $this->TMP_DIR . ' does not exist or is not writable';
         }
-
-        return;
     }
 
 }
@@ -150,7 +130,7 @@ class Transcoding {
 if(isset($_GET['location']) && isset($_GET['duration']) && isset($_GET['name'])){
     $obj = new Transcoding($_GET['location'], $_GET['duration'], $_GET['name']);
 }else{
-    echo "GET parameters missing";
+    echo "GET: parameters missing";
 }
 
 ?>
