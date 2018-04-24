@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+    </head>
+    <body>
+      
+          
+        <progress id='progressor' value="0" max='100' style=""></progress>  
+        <span id="percentage" style="text-align:right; display:block; margin-top:5px;">0</span>
+        <script>
+        var es;
+   
+            function startTask() {
+                es = new EventSource('event.php');
+
+                //a message is received
+                es.addEventListener('message', function (e) {
+                    var result = JSON.parse(e.data);
+
+                    addLog(result.message);
+
+                    if (e.lastEventId == 'CLOSE') {
+                        addLog('Received CLOSE closing');
+                        es.close();
+                        var pBar = document.getElementById('progressor');
+                        pBar.value = pBar.max; //max out the progress bar
+                    }
+                    else {
+                        var pBar = document.getElementById('progressor');
+                        pBar.value = result.progress;
+                        var perc = document.getElementById('percentage');
+                        perc.innerHTML = result.progress + "%";
+                        perc.style.width = (Math.floor(pBar.clientWidth * (result.progress / 100)) + 15) + 'px';
+                    }
+                });
+
+                es.addEventListener('error', function (e) {
+                    addLog('Error occurred');
+                    es.close();
+                });
+            }
+
+            function stopTask() {
+                es.close();
+                addLog('Interrupted');
+            }
+
+            function addLog(message) {
+                var r = document.getElementById('results');
+                //r.innerHTML += message + '<br>';
+                //r.scrollTop = r.scrollHeight;
+            }
+
+             startTask();
+        </script>
+    </body>
+</html>

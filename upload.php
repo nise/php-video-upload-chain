@@ -10,13 +10,15 @@
  */
 header('Content-Type: text/plain; charset=utf-8');
 
+include 'util.php';
 
 class Upload {
         
     function __construct() { 
+        $this->util = new Util();
         $this->result = [
-        "upload_max_filesize" => $this->convertPHPSizeToBytes( ini_get('upload_max_filesize') ),
-        "post_max_size" => $this->convertPHPSizeToBytes( ini_get('post_max_size') ),
+        "upload_max_filesize" => $this->util->convertPHPSizeToBytes( ini_get('upload_max_filesize') ),
+        "post_max_size" => $this->util->convertPHPSizeToBytes( ini_get('post_max_size') ),
         "files" => array(),
         "total-size" => 0,
         "error" => ''
@@ -51,7 +53,7 @@ class Upload {
         $this->FILES = $_FILES['videofiles'];
         //$MIMES = array('jpg' => 'image/jpeg','png' => 'image/png','gif' => 'image/gif' );
         $this->MIMES = array('mp4' => 'video/mp4','webm' => 'video/webm' );
-        $this->MAX_SIZE = $this->getMaximumFileUploadSize(); // 200MB = 200 * 1024 * 1024; 
+        $this->MAX_SIZE = $this->util->getMaximumFileUploadSize(); // 200MB = 200 * 1024 * 1024; 
 
        try {
         
@@ -85,15 +87,16 @@ class Upload {
                 $res = [];		      
                 $res['location'] = "$this->UPLOAD_DIR/$name";
                 $res['name'] = $name;
+                $res['tmp_location'] = $this->TMP_DIR . '/' . $name;
+                $res['name_clean'] = $n;
                 $res['size'] = $this->FILES['size'][$key];
                 $res['type'] = $this->FILES['type'][$key];
                 $res['error'] = '';
                 $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
-                $res['error'] .= $this->convertVideos($tmp_name, $n); // function should return errors. xxx
-                // generate gif
                 
-
-                $res['error'] .= $this->extractImages($tmp_name, $res['duration'], 4, $n);
+                // conversion & extraction
+                //$res['error'] .= $this->convertVideos($tmp_name, $n); // function should return errors. xxx
+                //$res['error'] .= $this->extractImages($tmp_name, $res['duration'], 4, $n);
 
                 // check mime
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -122,9 +125,7 @@ class Upload {
             }
             echo json_encode($this->result);
         } catch (RuntimeException $e) {
-                echo json_encode($e->getMessage());
-                echo "bam";
-            //	echo $e->getMessage();
+            echo json_encode($e->getMessage());
         }
 
     }
@@ -141,6 +142,11 @@ class Upload {
                 $move = rename($this->TMP_DIR . '/' . $name . '.mp4', $this->UPLOAD_DIR . '/' . $name . '.mp4');
                 if($move == false){
                     $error .= 'Could not move mp4 video '. $this->UPLOAD_DIR . '/' . $name . '.mp4';
+                }
+
+                $move = rename($this->TMP_DIR . '/' . $name . '.webm', $this->UPLOAD_DIR . '/' . $name . '.webm');
+                if($move == false){
+                    $error .= 'Could not move webm video '. $this->UPLOAD_DIR . '/' . $name . '.webm';
                 }
             }else {
                 $error .=  "The upload directory does not exist or is not writable.";
@@ -175,103 +181,11 @@ class Upload {
             
         }else {
             $error .=  "The temporary (tmp) directory does not exist or is not writable.";
-        }    
-        //echo $error;
+        }
         
         return $error;
-        /*
-        if (!move_uploaded_file(
-            $this->TMP_DIR . '/' . $name . '.webm', 
-            $this->UPLOAD_DIR . '/' . $name . '.webm'
-        )){
-            $error .= 'Could not move webm video';
-        }*/
-          
-        // move still image and gif animation
-        
-        //echo $error;
-        //return $error;
     }
 
-
-    /**
-     * Converts a given video file into an webm and mp4 file
-     */
-    function convertVideos($filename, $name){
-        // initialize
-        require_once 'vendor/autoload.php';
-        $ffmpeg = FFMpeg\FFMpeg::create(array(
-            'ffmpeg.binaries'  => '/usr/bin/ffmpeg',
-            'ffprobe.binaries' => '/usr/bin/ffprobe',
-            'timeout'          => 360000, // The timeout for the underlying process
-            'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
-        ));
-        
-        $ffmpeg = FFMpeg\FFMpeg::create();
-
-        // open video
-        $video = $ffmpeg->open( $filename );
-       
-        $formatx264 = new FFMpeg\Format\Video\X264();
-        $formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame libfaac
-        $formatwebm = new FFMpeg\Format\Video\WebM();
-        $formatwebm->setAudioCodec("libvorbis");
-        $formatx264->on('progress', function ($audio, $format, $percentage) {
-            //echo "$percentage % transcoded";
-        });
-        
-        $video->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4');
-        $video->save($formatwebm, $this->TMP_DIR . '/' . $name . '.webm');
-
-        // bug: https://github.com/PHP-FFMpeg/PHP-FFMpeg/issues/453
-        //$video->filters()->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_10SEC, $stillstarget.'test/')->synchronize()->save(new FFMpeg\Format\Video\X264(), 'new.jpg');
-        
-        return;
-    }
-
-
-    /**
-     * Extracts a given number of still images from a video
-     */
-    function extractImages( $videofile, $duration, $n, $name ){
-        require_once 'vendor/autoload.php'; 
-        $ffmpeg = FFMpeg\FFMpeg::create(array(
-            'ffmpeg.binaries'  => '/usr/bin/ffmpeg',
-            'ffprobe.binaries' => '/usr/bin/ffprobe',
-            'timeout'          => 360000, // The timeout for the underlying process
-            'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
-        ), $logger);  
-
-        $video = $ffmpeg->open( $videofile );
-        
-        if(is_dir($this->TMP_DIR) && is_writable($this->TMP_DIR)){
-            // generate gif animation
-            $video 
-                ->gif(FFMpeg\Coordinate\TimeCode::fromSeconds(0), new FFMpeg\Coordinate\Dimension(320, 240), 10)
-                ->save( $this->TMP_DIR . '/still-' . $name . '_comp.gif');
-            // generate thumbnail
-            $video
-                ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(round($duration/2)))
-                ->save( $this->TMP_DIR . '/still-' . $name . '_comp.jpg');
-            
-            // generate preview images for every second
-            // FRAMERATE_EVERY_SEC: 2, 5, 10, 30, 60 
-            //$video->filters()
-              //  ->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_SEC, $this->TMP_DIR.'/thumbnail-.jpg')
-               // ->synchronize();
-                
-            //$video
-            for($i=0; $i < $duration; $i++){
-                $video
-                    ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds($i))
-                    ->save( $this->TMP_DIR . '/preview-' . $name . '-' . $i . '.jpg' );        
-            }/**/
-        }else{
-            return $this->TMP_DIR . ' does not exist or is not writable';
-        }
-
-        return $logger;
-    }
 
     /**
      * Determines the video duration
@@ -281,49 +195,7 @@ class Upload {
         $ffprobe = FFMpeg\FFProbe::create(); 
         return round( $ffprobe->format( $filename )->get('duration') );
     }
-    
-    
-    /**
-    * This function transforms the php.ini notation for numbers (like '2M') to an integer (2*1024*1024 in this case)
-    * 
-    * @param string $sSize
-    * @return integer The value in bytes
-    */
-    function convertPHPSizeToBytes($sSize)
-    {
-        //
-        $sSuffix = strtoupper(substr($sSize, -1));
-        if (!in_array($sSuffix,array('P','T','G','M','K'))){
-            return (int)$sSize;  
-        } 
-        $iValue = substr($sSize, 0, -1);
-        switch ($sSuffix) {
-            case 'P':
-                $iValue *= 1024;
-                // Fallthrough intended
-            case 'T':
-                $iValue *= 1024;
-                // Fallthrough intended
-            case 'G':
-                $iValue *= 1024;
-                // Fallthrough intended
-            case 'M':
-                $iValue *= 1024;
-                // Fallthrough intended
-            case 'K':
-                $iValue *= 1024;
-                break;
-        }
-        return (int)$iValue;
-    }
-
-    /**
-     * Returns the maximum size for being uploaded
-     */
-    function getMaximumFileUploadSize(){  
-        return min($this->convertPHPSizeToBytes(ini_get('post_max_size')), $this->convertPHPSizeToBytes(ini_get('upload_max_filesize'))+1 );
-    }  
-        
+   
 }
 
 $obj = new Upload();
