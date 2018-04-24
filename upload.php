@@ -34,7 +34,6 @@ class Upload {
         if( isset($_GET['completeupload']) && isset($_GET['duration'])){
             $this->moveFiles($_GET['completeupload'], $_GET['duration']);
         }else{
-            //$this->moveFiles($_GET['completeupload']);
             $this->upload();
         }
     }
@@ -50,68 +49,64 @@ class Upload {
         $this->MIMES = array('mp4' => 'video/mp4','webm' => 'video/webm' );
         $this->MAX_SIZE = $this->util->getMaximumFileUploadSize(); // 200MB = 200 * 1024 * 1024; 
 
-       try {
-    
-        $error = 0;
-        switch ($this->FILES['error']) {
-            case UPLOAD_ERR_OK:
-                $error = UPLOAD_ERR_OK;
-                break;
-            case UPLOAD_ERR_NO_FILE:
-                //throw new RuntimeException('No file sent.');
-            case UPLOAD_ERR_INI_SIZE:
-                //$error = UPLOAD_ERR_INI_SIZE;
-                //break;
-            case UPLOAD_ERR_FORM_SIZE:
-                    //throw new RuntimeException('Exceeded filesize limit.');
-            default:
-                    //throw new RuntimeException('Unknown errors.');
-        }
+        try {
 
-        for($key=0; $key < sizeof($this->FILES["name"]); $key++) {
-                
-            if ($error == 0) {
-                $date = date_create();
-                $timestamp = date_timestamp_get($date);
-                $tmp_name = $this->FILES["tmp_name"][$key];
-                $name = $timestamp . '-' . basename($this->FILES["name"][$key]);
-                $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
-                $res = [];		      
-                $res['location'] = "$this->UPLOAD_DIR/$name";
-                $res['name'] = $name;
-                $res['tmp_location'] = $this->TMP_DIR . '/' . $name;
-                $res['name_clean'] = $n;
-                $res['size'] = $this->FILES['size'][$key];
-                $res['type'] = $this->FILES['type'][$key];
-                $res['error'] = '';
-                $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
-                
-                // conversion & extraction
-                //$res['error'] .= $this->convertVideos($tmp_name, $n); // function should return errors. xxx
-                //$res['error'] .= $this->extractImages($tmp_name, $res['duration'], 4, $n);
+            $error = 0;
+            switch ($this->FILES['error']) {
+                case UPLOAD_ERR_OK:
+                    $error = UPLOAD_ERR_OK;
+                    break;
+                case UPLOAD_ERR_NO_FILE:
+                    //throw new RuntimeException('No file sent.');
+                case UPLOAD_ERR_INI_SIZE:
+                    //$error = UPLOAD_ERR_INI_SIZE;
+                    //break;
+                case UPLOAD_ERR_FORM_SIZE:
+                        //throw new RuntimeException('Exceeded filesize limit.');
+                default:
+                        //throw new RuntimeException('Unknown errors.');
+            }
 
-                // check mime
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            
-                if ((int)$this->FILES['size'][$key] > $this->MAX_SIZE ) { // check file size
-                    $res['error'] .= "File size for ".$name. " (".$this->FILES['size'][$key].") is greater then ".$this->MAX_SIZE;
+            for($key=0; $key < sizeof($this->FILES["name"]); $key++) {
+                    
+                if ($error == 0) {
+                    $date = date_create();
+                    $timestamp = date_timestamp_get($date);
+                    $tmp_name = $this->FILES["tmp_name"][$key];
+                    $name = $timestamp . '-' . basename($this->FILES["name"][$key]);
+                    $n = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name );
+                    $res = [];		      
+                    $res['location'] = "$this->UPLOAD_DIR/$name";
+                    $res['name'] = $name;
+                    $res['tmp_location'] = $this->TMP_DIR . '/' . $name;
+                    $res['name_clean'] = $n;
+                    $res['size'] = $this->FILES['size'][$key];
+                    $res['type'] = $this->FILES['type'][$key];
+                    $res['error'] = '';
+                    $res['duration'] = $this->getVideoDuration($tmp_name);//"$this->TMP_DIR/$name");
+                    
+                    // check mime
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
                 
-                } else if (false === $ext = array_search( finfo_file($finfo, $tmp_name), $this->MIMES, true)){
-                    $res['error'] .= "Invalid file format " .finfo_file($finfo, $tmp_name);
-                
-                } else if (!move_uploaded_file( $tmp_name, $this->TMP_DIR . '/' . $name )){
-                    $res['error'] .= "Could not move file ". $name ." to ".$this->TMP_DIR.'/'.$name;
-    
-                }
-                
-                $res['location'] = "$this->HOST_PATH/$name";
-                $this->result['files'][(int)$key] = $res;
-                $this->result['total-size'] = $this->result['total-size'] + $this->FILES['size'][$key];
-                
-                $this->result['error'] = $res['error'];
+                    if ((int)$this->FILES['size'][$key] > $this->MAX_SIZE ) { // check file size
+                        $res['error'] .= "File size for ".$name. " (".$this->FILES['size'][$key].") is greater then ".$this->MAX_SIZE;
+                    
+                    } else if (false === $ext = array_search( finfo_file($finfo, $tmp_name), $this->MIMES, true)){
+                        $res['error'] .= "Invalid file format " .finfo_file($finfo, $tmp_name);
+                    
+                    } else if (!move_uploaded_file( $tmp_name, $this->TMP_DIR . '/' . $name )){
+                        $res['error'] .= "Could not move file ". $name ." to ".$this->TMP_DIR.'/'.$name;
+        
+                    }
+                    
+                    $res['location'] = "$this->HOST_PATH/$name";
+                    $this->result['files'][(int)$key] = $res;
+                    $this->result['total-size'] = $this->result['total-size'] + $this->FILES['size'][$key];
+                    
+                    $this->result['error'] = $res['error'];
                 }
             }
-            
+                
             if($this->result['total-size'] > $this->result['post_max_size']){
                 $this->result['error'] .= 'Max post size too high '. $this->result["total-size"] . ' of max '. $result["post_max_size"] ;
             }

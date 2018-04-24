@@ -46,8 +46,8 @@ class Transcoding {
         // initialize
         require_once 'vendor/autoload.php';
         $ffmpeg = FFMpeg\FFMpeg::create(array(
-            'ffmpeg.binaries'  => '/usr/bin/ffmpeg',
-            'ffprobe.binaries' => '/usr/bin/ffprobe',
+            'ffmpeg.binaries'  => $this->config['ffmpeg'],
+            'ffprobe.binaries' => $this->config['ffprobe'],
             'timeout'          => 360000, // The timeout for the underlying process
             'ffmpeg.threads'   => 16,   // The number of threads that FFMpeg should use
         ));
@@ -70,8 +70,7 @@ class Transcoding {
         });
         
         $video->save($formatx264, $this->TMP_DIR . '/' . $name . '.mp4');
-        $video->save($formatwebm, $this->TMP_DIR . '/' . $name . '.webm');
-        
+        $video->save($formatwebm, $this->TMP_DIR . '/' . $name . '.webm');   
     }
 
 
@@ -81,8 +80,8 @@ class Transcoding {
     function extractImages( $videofile, $duration, $n, $name ){
         require_once 'vendor/autoload.php'; 
         $ffmpeg = FFMpeg\FFMpeg::create(array(
-            'ffmpeg.binaries'  => '/usr/bin/ffmpeg',
-            'ffprobe.binaries' => '/usr/bin/ffprobe',
+            'ffmpeg.binaries'  => $this->config['ffmpeg'],
+            'ffprobe.binaries' => $this->config['ffprobe'],
             'timeout'          => 360000, // The timeout for the underlying process
             'ffmpeg.threads'   => 16   // The number of threads that FFMpeg should use
         ));  
@@ -96,18 +95,13 @@ class Transcoding {
                 ->save( $this->TMP_DIR . '/still-' . $name . '_comp.gif');
             $this->send_message('img-ani', 'animation', 100);
 
-            // generate thumbnail
+            // generate a thumbnail image
             $video
                 ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(round($duration/2)))
                 ->save( $this->TMP_DIR . '/still-' . $name . '_comp.jpg');
             $this->send_message('img-thumb', 'thumbnail', 100); 
-            // generate preview images for every second
-            // FRAMERATE_EVERY_SEC: 2, 5, 10, 30, 60 
-            //$video->filters()
-              //  ->extractMultipleFrames(FFMpeg\Filters\Video\ExtractMultipleFramesFilter::FRAMERATE_EVERY_SEC, $this->TMP_DIR.'/thumbnail-.jpg')
-               // ->synchronize();
                 
-            //$video
+            // generate preview images per minute
             for($i=0; $i < $duration; $i++){
                 $video
                     ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds($i))
@@ -119,7 +113,6 @@ class Transcoding {
             return $this->TMP_DIR . ' does not exist or is not writable';
         }
     }
-
 }
 
 // initialize class

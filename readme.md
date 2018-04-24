@@ -1,4 +1,4 @@
-PHP-Video-Upload-Chain is a simple for processing uploaded videos in order to obtain the the desired formats, sizes and preview images or animations. 
+PHP-Video-Upload-Chain is a simple tol for processing uploaded videos in order to obtain the desired formats, sizes, qualities, preview images, thumbnails, and animations. 
 
 The script is based on [PHP-FFMpeg](https://github.com/PHP-FFMpeg/PHP-FFMpeg) and requires a local installation of ffmpeg, lame, and libaacs-dev. 
 
@@ -13,7 +13,7 @@ All PHP-related dependencies should be installed with *composer*.
 * generates preview images per second
 
 **TODO**
-* convert different frame sizes
+* convert different frame sizes and bitrates
 * add a water mark to every video
 * create audio wave form of the video
 
