@@ -56,15 +56,16 @@ class Transcoding {
 
         // open video
         $video = $ffmpeg->open( $filename );
-        $this->send_message(111, 'Started transcoding', 0);
         $formatx264 = new FFMpeg\Format\Video\X264();
         $formatx264->setAudioCodec("libmp3lame"); // libvorbis  libmp3lame libfaac
         $formatx264->on('progress', function ($audio, $format, $percentage) {
+            $percentage = is_numeric($percentage) ? $percentage : 0;
             $this->send_message($percentage, 'x264' , $percentage); 
         });
         $formatwebm = new FFMpeg\Format\Video\WebM();
         $formatwebm->setAudioCodec("libvorbis");
         $formatwebm->on('progress', function ($audio, $format, $percentage) {
+            $percentage = is_numeric($percentage) ? $percentage : 0;
             $this->send_message($percentage, 'x264' , $percentage); 
         });
         
@@ -92,20 +93,14 @@ class Transcoding {
             // generate gif animation
             $video 
                 ->gif(FFMpeg\Coordinate\TimeCode::fromSeconds(0), new FFMpeg\Coordinate\Dimension(320, 240), 10)
-                /*->on('progress', function ($audio, $format, $percentage) {
-                    $this->send_message($percentage, 'gif' , $percentage); 
-                })*/
                 ->save( $this->TMP_DIR . '/still-' . $name . '_comp.gif');
-            $this->send_message($percentage, 'animation' , $percentage);
+            $this->send_message('img-ani', 'animation', 100);
 
             // generate thumbnail
             $video
                 ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(round($duration/2)))
-                /*->on('progress', function ($audio, $format, $percentage) {
-                    $this->send_message($percentage, 'thumbnail' , $percentage); 
-                })*/
                 ->save( $this->TMP_DIR . '/still-' . $name . '_comp.jpg');
-            $this->send_message($percentage, 'thumbnail' , 100); 
+            $this->send_message('img-thumb', 'thumbnail', 100); 
             // generate preview images for every second
             // FRAMERATE_EVERY_SEC: 2, 5, 10, 30, 60 
             //$video->filters()
@@ -117,8 +112,9 @@ class Transcoding {
                 $video
                     ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds($i))
                     ->save( $this->TMP_DIR . '/preview-' . $name . '-' . $i . '.jpg' );
-                 $this->send_message($percentage, 'preview', round($i / $duration));    
+                 $this->send_message('img', 'preview', round( ($i / $duration) * 100));    
             }
+            $this->send_message('img', 'preview', 100);    
         }else{
             return $this->TMP_DIR . ' does not exist or is not writable';
         }
