@@ -29,6 +29,7 @@ class Upload {
         $this->HOST_PATH = $this->config['host_path'];
         $this->UPLOAD_DIR = $this->config['upload_dir'];
         $this->TMP_DIR = $this->config['tmp_dir'];
+        $this->TMP_REL_DIR = $this->config['tmp_rel_dir'];
         $this->STILLS_DIR = $this->config['stills_dir'];
 
         if( isset($_GET['completeupload']) && isset($_GET['duration'])){
@@ -79,6 +80,7 @@ class Upload {
                     $res['location'] = "$this->UPLOAD_DIR/$name";
                     $res['name'] = $name;
                     $res['tmp_location'] = $this->TMP_DIR . '/' . $name;
+                    $res['tmp_rel_location'] = $this->TMP_REL_DIR . '/' . $name;
                     $res['name_clean'] = $n;
                     $res['size'] = $this->FILES['size'][$key];
                     $res['type'] = $this->FILES['type'][$key];
