@@ -89,14 +89,12 @@ class Upload {
                     $finfo = finfo_open(FILEINFO_MIME_TYPE);
                 
                     if ((int)$this->FILES['size'][$key] > $this->MAX_SIZE ) { // check file size
-                        $res['error'] .= "File size for ".$name. " (".$this->FILES['size'][$key].") is greater then ".$this->MAX_SIZE;
-                    
+                        $res['error'] .= "File size for: ".$name. " (".$this->FILES['size'][$key].") is greater then ".$this->MAX_SIZE; 
                     } else if (false === $ext = array_search( finfo_file($finfo, $tmp_name), $this->MIMES, true)){
-                        $res['error'] .= "Invalid file format " .finfo_file($finfo, $tmp_name);
+                        $res['error'] .= "Invalid file format: " .finfo_file($finfo, $tmp_name);
                     
                     } else if (!move_uploaded_file( $tmp_name, $this->TMP_DIR . '/' . $name )){
-                        $res['error'] .= "Could not move file ". $name ." to ".$this->TMP_DIR.'/'.$name;
-        
+                        $res['error'] .= "Could not move file: ". $name ." to ".$this->TMP_DIR.'/'.$name;
                     }
                     
                     $res['location'] = "$this->HOST_PATH/$name";
